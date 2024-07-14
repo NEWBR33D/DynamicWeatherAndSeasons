@@ -1,0 +1,17 @@
+{
+    "mod": "PreyToLive-DynamicWeatherAndSeasons-v1.0.0",
+    "date": {
+        "day": 13,
+        "month": "july",
+        "year": 2024
+    },
+    "season": "summer",
+    "weather": {
+        "clouds": "",
+        "rain": "",
+        "wind": "",
+        "fog": "",
+        "temp": "",
+        "pressure": ""
+    }
+}
