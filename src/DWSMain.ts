@@ -1,5 +1,5 @@
 /*
- * DynamicWeatherAndSeasons v1.0.0
+ * DynamicWeatherAndSeasons v1.0.1
  * MIT License
  * Copyright (c) 2024 PreyToLive
  */
@@ -8,9 +8,11 @@
 /* eslint-disable @typescript-eslint/brace-style */
 
 import { DependencyContainer } from "tsyringe";
+import { WeatherCallbacks } from "@spt/callbacks/WeatherCallbacks";
 import { PreSptModLoader } from "@spt/loaders/PreSptModLoader";
 import { ConfigTypes } from "@spt/models/enums/ConfigTypes";
 import { IPostSptLoadMod } from "@spt/models/external/IPostSptLoadMod";
+import { IEmptyRequestData } from "@spt/models/eft/common/IEmptyRequestData";
 import { IWeatherConfig } from "@spt/models/spt/config/IWeatherConfig";
 import { ILogger } from "@spt/models/spt/utils/ILogger";
 import { ConfigServer } from "@spt/servers/ConfigServer";
@@ -22,9 +24,11 @@ import pkg from "../package.json";
 
 class DWSMain implements IPostSptLoadMod {
     private logger: ILogger;
+    private weatherCallbacks: WeatherCallbacks;
 
     public preSptLoad(container: DependencyContainer): void {
         this.logger = container.resolve<ILogger>("WinstonLogger");
+        this.weatherCallbacks = container.resolve<WeatherCallbacks>("WeatherCallbacks");
 
         const preSptModLoader = container.resolve<PreSptModLoader>("PreSptModLoader");
         const staticRouterModService: StaticRouterModService = container.resolve<StaticRouterModService>("StaticRouterModService");
@@ -69,10 +73,10 @@ class DWSMain implements IPostSptLoadMod {
                                     november: 11,
                                     december: 12
                                 }
-
+                                
                                 profileDay++;
                                 if (profileDay > monthDurationInRaids) {
-                                    const monthIndex = monthIndices[profileMonth.toLowerCase()] || 1;
+                                    const monthIndex = monthIndices[profileMonth] || 1;
                                     const nextMonthIndex = monthIndex === 12 ? 1 : monthIndex + 1;
 
                                     profileDay = 1;
@@ -82,14 +86,21 @@ class DWSMain implements IPostSptLoadMod {
                                         profileYear++;
                                     }
                                 }
+                                if (dbConfig.randomMonthEachRaid) {
+                                    const randomMonthIndex = Math.floor(Math.random() * 12) + 1
+                                    profileMonth = Object.keys(monthIndices).find(key => monthIndices[key] === randomMonthIndex);
+                                }
                                 profileSeason = dbConfig.months[profileMonth];
 
                                 // START UPDATE WEATHER AND SEASONS
 
                                 const weatherSelections: Record<string, number> = {};
                                 for (const [key, value] of Object.entries(dbConfig.seasons[profileSeason].weather)) {
-                                    if (Array.isArray(value)) {
-                                        weatherSelections[key] = value[Math.floor(Math.random() * value.length)];
+                                    if (Array.isArray(value) && value.length > 0) {
+                                        const selectedValue = value[Math.floor(Math.random() * value.length)];
+                                        if (typeof selectedValue === "number") {
+                                            weatherSelections[key] = selectedValue;
+                                        }
                                     }
                                 }
                                 const { clouds, rain, wind, fog, temp, pressure } = weatherSelections;
@@ -183,11 +194,17 @@ class DWSMain implements IPostSptLoadMod {
                                 if (profileSeason === "spring") {
                                     seasonOverrideValue = 3;
                                 } else if (profileSeason === "summer") {
-                                    seasonOverrideValue = 0;
+                                    if (clouds >= 3 && rain >= 3 ) {
+                                        seasonOverrideValue = 4;
+                                    } else {
+                                        seasonOverrideValue = 0;
+                                    }
                                 } else if (profileSeason === "autumn") {
                                     seasonOverrideValue = 1;
                                 } else if (profileSeason === "winter") {
                                     seasonOverrideValue = 2;
+                                } else {
+                                    seasonOverrideValue =  Math.floor(Math.random() * 4);
                                 }
                                 sptConfigsWeather.overrideSeason = seasonOverrideValue;
 
@@ -215,6 +232,17 @@ class DWSMain implements IPostSptLoadMod {
                                 fs.writeFileSync(profilePath, JSON.stringify(newProfileData, null, 4));
 
                                 // END UPDATE PROFILE
+
+                                if (dbConfig.consoleLogs) {
+                                    this.logger.log(`Mod: ${pkg.name}: console logs`, LoggerTypes.INFO);
+                                    this.logger.log(`season: ${profileSeason}`, LoggerTypes.INFO);
+                                    this.logger.log(`weather: clouds: ${clouds}: ${cloudsProfile}`, LoggerTypes.INFO);
+                                    this.logger.log(`weather: rain: ${rain}: ${rainProfile}`, LoggerTypes.INFO);
+                                    this.logger.log(`weather: wind: ${wind}: ${windProfile}`, LoggerTypes.INFO);
+                                    this.logger.log(`weather: fog: ${fog}: ${fogProfile}`, LoggerTypes.INFO);
+                                    this.logger.log(`weather: temp: ${temp}: ${tempProfile}`, LoggerTypes.INFO);
+                                    this.logger.log(`weather: pressure: ${pressure}: ${pressureProfile}`, LoggerTypes.INFO);
+                                }
                             }
                         } catch (err) {
                             this.logger.error(`Error in [${pkg.name}] /client/items: ${err.message}`);
@@ -224,6 +252,20 @@ class DWSMain implements IPostSptLoadMod {
                 }
             ],
             `[${pkg.name}] /client/items`
+        );
+
+        staticRouterModService.registerStaticRouter(
+            `[${pkg.name}] /client/weather`, 
+            [
+                {
+                    url: "/client/weather",
+                    action: (url: string, info: IEmptyRequestData, sessionID: string): any => {
+                        //this.logger.log(JSON.stringify(this.weatherCallbacks.getWeather(url, info, sessionID), null, 4), "green");
+                        return this.weatherCallbacks.getWeather(url, info, sessionID);
+                    }
+                }
+            ],
+            `[${pkg.name}] /client/weather`
         );
     }
 

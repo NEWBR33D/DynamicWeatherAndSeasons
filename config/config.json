@@ -1,7 +1,9 @@
 {
-    "mod": "PreyToLive-DynamicWeatherAndSeasons-v1.0.0",
+    "mod": "PreyToLive-DynamicWeatherAndSeasons-v1.0.1",
     "modEnabled": true,
+    "consoleLogs": false,
 
+    "randomMonthEachRaid": false,
     "monthDurationInRaids": 10,
     "months": {
         "january": "winter",
