@@ -208,6 +208,12 @@ class DWSMain implements IPostSptLoadMod {
                                 }
                                 sptConfigsWeather.overrideSeason = seasonOverrideValue;
 
+                                //fix the issue: weather is stuck always in autumn/early winter
+                                if (sptConfigsWeather.overrideSeason === 0) {
+                                    //find this fix from another mod: https://hub.sp-tarkov.com/files/file/2118-simple-season-selector/#overview
+                                    sptConfigsWeather.overrideSeason = "SUMMER" // cludge fix for a 3.9 bug
+                                }
+
                                 // END UPDATE WEATHER AND SEASONS
 
                                 const newProfileData = {
