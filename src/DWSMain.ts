@@ -36,6 +36,14 @@ class DWSMain implements IPostSptLoadMod {
         const modName = `${pkg.author}-${pkg.name}-v${pkg.version}`;
         const modPath = preSptModLoader.getModPath(path.basename(path.dirname(__dirname.split('/').pop())));
 
+        // START UPDATE PROFILE
+        const dbProfile = require("../db/profile.json");
+        
+        let profileDay = dbProfile.date.day;
+        let profileMonth = dbProfile.date.month;
+        let profileYear = dbProfile.date.year;
+        let profileSeason = dbProfile.season;
+
         staticRouterModService.registerStaticRouter(
             `[${pkg.name}] /client/items`, 
             [
@@ -46,18 +54,9 @@ class DWSMain implements IPostSptLoadMod {
                             const sptConfigsWeather: IWeatherConfig = container.resolve<ConfigServer>("ConfigServer").getConfig<IWeatherConfig>(ConfigTypes.WEATHER);
 
                             const dbConfig = require("../config/config.json");
-                            const dbProfile = require("../db/profile.json");
                             const dbWeather = require("../db/weather.json");
 
                             if (dbConfig.modEnabled) {
-                                
-                                // START UPDATE PROFILE
-
-                                let profileDay = dbProfile.date.day;
-                                let profileMonth = dbProfile.date.month;
-                                let profileYear = dbProfile.date.year;
-                                let profileSeason = dbProfile.season;
-
                                 const monthDurationInRaids = dbConfig.monthDurationInRaids;
                                 const monthIndices = {
                                     january: 1,
