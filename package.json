@@ -1,6 +1,6 @@
 {
     "name": "DynamicWeatherAndSeasons",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "main": "src/DWSMain.js",
     "license": "MIT License",
     "author": "PreyToLive",

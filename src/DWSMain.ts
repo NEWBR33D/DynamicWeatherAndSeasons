@@ -1,5 +1,5 @@
 /*
- * DynamicWeatherAndSeasons v1.0.1
+ * DynamicWeatherAndSeasons v1.0.2
  * MIT License
  * Copyright (c) 2024 PreyToLive
  */
@@ -9,9 +9,8 @@
 
 import { DependencyContainer } from "tsyringe";
 import { WeatherCallbacks } from "@spt/callbacks/WeatherCallbacks";
-import { PreSptModLoader } from "@spt/loaders/PreSptModLoader";
 import { ConfigTypes } from "@spt/models/enums/ConfigTypes";
-import { IPostSptLoadMod } from "@spt/models/external/IPostSptLoadMod";
+import { IPostDBLoadMod } from "@spt/models/external/IPostDBLoadMod";
 import { IEmptyRequestData } from "@spt/models/eft/common/IEmptyRequestData";
 import { IWeatherConfig } from "@spt/models/spt/config/IWeatherConfig";
 import { ILogger } from "@spt/models/spt/utils/ILogger";
@@ -22,7 +21,7 @@ import * as path from "path";
 import * as fs from "fs";
 import pkg from "../package.json";
 
-class DWSMain implements IPostSptLoadMod {
+class DWSMain implements IPostDBLoadMod {
     private logger: ILogger;
     private weatherCallbacks: WeatherCallbacks;
 
@@ -30,11 +29,21 @@ class DWSMain implements IPostSptLoadMod {
         this.logger = container.resolve<ILogger>("WinstonLogger");
         this.weatherCallbacks = container.resolve<WeatherCallbacks>("WeatherCallbacks");
 
-        const preSptModLoader = container.resolve<PreSptModLoader>("PreSptModLoader");
         const staticRouterModService: StaticRouterModService = container.resolve<StaticRouterModService>("StaticRouterModService");
-        
         const modName = `${pkg.author}-${pkg.name}-v${pkg.version}`;
-        const modPath = preSptModLoader.getModPath(path.basename(path.dirname(__dirname.split('/').pop())));
+
+        const profilePath = path.resolve(path.dirname(__filename), "../db/profile.json");
+        const configPath = path.resolve(path.dirname(__filename), "../config/config.json");
+        const weatherPath = path.resolve(path.dirname(__filename), "../db/weather.json");
+
+        const readJsonFile = (filePath: string): any => {
+            try {
+                return JSON.parse(fs.readFileSync(filePath, "utf-8"));
+            } catch (error) {
+                this.logger.error(`Failed to read or parse file at ${filePath}: ${error}`);
+                return null;
+            }
+        };
 
         staticRouterModService.registerStaticRouter(
             `[${pkg.name}] /client/items`, 
@@ -45,9 +54,9 @@ class DWSMain implements IPostSptLoadMod {
                         try {
                             const sptConfigsWeather: IWeatherConfig = container.resolve<ConfigServer>("ConfigServer").getConfig<IWeatherConfig>(ConfigTypes.WEATHER);
 
-                            const dbConfig = require("../config/config.json");
-                            const dbProfile = require("../db/profile.json");
-                            const dbWeather = require("../db/weather.json");
+                            const dbConfig = readJsonFile(configPath);
+                            const dbProfile = readJsonFile(profilePath);
+                            const dbWeather = readJsonFile(weatherPath);
 
                             if (dbConfig.modEnabled) {
                                 
@@ -75,10 +84,9 @@ class DWSMain implements IPostSptLoadMod {
                                 }
                                 
                                 profileDay++;
+                                const monthIndex = monthIndices[profileMonth] || 1;
+                                const nextMonthIndex = monthIndex === 12 ? 1 : monthIndex + 1;
                                 if (profileDay > monthDurationInRaids) {
-                                    const monthIndex = monthIndices[profileMonth] || 1;
-                                    const nextMonthIndex = monthIndex === 12 ? 1 : monthIndex + 1;
-
                                     profileDay = 1;
                                     profileMonth = Object.keys(monthIndices).find(key => monthIndices[key] === nextMonthIndex) || "january";
                                     
@@ -87,7 +95,7 @@ class DWSMain implements IPostSptLoadMod {
                                     }
                                 }
                                 if (dbConfig.randomMonthEachRaid) {
-                                    const randomMonthIndex = Math.floor(Math.random() * 12) + 1
+                                    const randomMonthIndex = Math.floor(Math.random() * 12) + 1;
                                     profileMonth = Object.keys(monthIndices).find(key => monthIndices[key] === randomMonthIndex);
                                 }
                                 profileSeason = dbConfig.months[profileMonth];
@@ -204,9 +212,17 @@ class DWSMain implements IPostSptLoadMod {
                                 } else if (profileSeason === "winter") {
                                     seasonOverrideValue = 2;
                                 } else {
-                                    seasonOverrideValue =  Math.floor(Math.random() * 4);
+                                    seasonOverrideValue = Math.floor(Math.random() * 4);
                                 }
                                 sptConfigsWeather.overrideSeason = seasonOverrideValue;
+
+                                for (const seasonData of sptConfigsWeather.seasonDates) {
+                                    seasonData.seasonType = seasonOverrideValue;
+                                    seasonData.startDay = 1;
+                                    seasonData.startMonth = monthIndex.toString();
+                                    seasonData.endDay = 31;
+                                    seasonData.endMonth = 12;
+                                }
 
                                 // END UPDATE WEATHER AND SEASONS
 
@@ -228,7 +244,6 @@ class DWSMain implements IPostSptLoadMod {
                                     }
                                 }
 
-                                const profilePath = path.join(modPath, "db/profile.json");
                                 fs.writeFileSync(profilePath, JSON.stringify(newProfileData, null, 4));
 
                                 // END UPDATE PROFILE
@@ -269,63 +284,73 @@ class DWSMain implements IPostSptLoadMod {
         );
     }
 
-    public postSptLoad(container: DependencyContainer): void {
+    public postDBLoad(container: DependencyContainer): void {
+        const sptConfigsWeather: IWeatherConfig = container.resolve<ConfigServer>("ConfigServer").getConfig<IWeatherConfig>(ConfigTypes.WEATHER);
+
+        for (const seasonData of sptConfigsWeather.seasonDates) {
+            seasonData.seasonType = 0;
+            seasonData.startDay = 1;
+            seasonData.startMonth = 1;
+            seasonData.endDay = 31;
+            seasonData.endMonth = 12;
+        }
+
         /*
-            LIGHT RAIN
-                clouds >= -0.699
-                wind <= 1.0
-                1.0 <= rain <= 3.0
-            RAIN
-                wind <= 1.0
-                rain > 3.0
-            CLEAR
-                clouds < -0.4
-                wind <= 1.0
-                rain < 2.0
-                fog <= 0.004
-            CLEAR WIND
-                clouds < -0.4
-                wind > 1.0
-                rain < 2.0
-                fog <= 0.004
-            PARTLY CLOUDY
-                -0.699 <= clouds <= -0.400
-                wind <= 1.0
-                rain < 2.0
-                fog <= 0.004
-            CLEAR FOG
-                clouds < -0.4
-                0.004 < fog < 0.100
-            FOG
-                fog >= 0.100
-            CLOUD FOG
-                -0.400 <= clouds <= 0.699
-                fog > 0.004
-            MOSTLY CLOUDY
-                -0.400 <= clouds <= 0.699
-                rain <= 1.0
-            FULL CLOUD
-                0.699 <= clouds <= 1.000
-                rain <= 1.0
-            THUNDER CLOUD
-                clouds >= 1.0
-                rain <= 1.0
-            CLOUD WIND
-                clouds >= 0.0
-                wind >= 2.0
-                rain <= 1.0
-            CLOUD WIND RAIN
-                wind >= 2.0
-                rain >= 2.0
-            WIND DIRECTION
-                East = 1,
-                North = 2,
-                West = 3,
-                South = 4,
-                SE = 5,
-                SW = 6,
-                NW = 7,
-                NE = 8,
+        LIGHT RAIN
+            clouds >= -0.699
+            wind <= 1.0
+            1.0 <= rain <= 3.0
+        RAIN
+            wind <= 1.0
+            rain > 3.0
+        CLEAR
+            clouds < -0.4
+            wind <= 1.0
+            rain < 2.0
+            fog <= 0.004
+        CLEAR WIND
+            clouds < -0.4
+            wind > 1.0
+            rain < 2.0
+            fog <= 0.004
+        PARTLY CLOUDY
+            -0.699 <= clouds <= -0.400
+            wind <= 1.0
+            rain < 2.0
+            fog <= 0.004
+        CLEAR FOG
+            clouds < -0.4
+            0.004 < fog < 0.100
+        FOG
+            fog >= 0.100
+        CLOUD FOG
+            -0.400 <= clouds <= 0.699
+            fog > 0.004
+        MOSTLY CLOUDY
+            -0.400 <= clouds <= 0.699
+            rain <= 1.0
+        FULL CLOUD
+            0.699 <= clouds <= 1.000
+            rain <= 1.0
+        THUNDER CLOUD
+            clouds >= 1.0
+            rain <= 1.0
+        CLOUD WIND
+            clouds >= 0.0
+            wind >= 2.0
+            rain <= 1.0
+        CLOUD WIND RAIN
+            wind >= 2.0
+            rain >= 2.0
+        WIND DIRECTION
+            East = 1,
+            North = 2,
+            West = 3,
+            South = 4,
+            SE = 5,
+            SW = 6,
+            NW = 7,
+            NE = 8,
         */
     }
 }

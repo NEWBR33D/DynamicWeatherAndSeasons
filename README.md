@@ -1,4 +1,4 @@
-# **PreyToLive-DynamicWeatherAndSeasons v1.0.1**
+# **PreyToLive-DynamicWeatherAndSeasons v1.0.2**
 
 Developed by: [NEWBR33D](https://github.com/NEWBR33D) (aka [PreyToLive](https://hub.sp-tarkov.com/user/24548-preytolive/))
 
@@ -7,7 +7,7 @@ Developed by: [NEWBR33D](https://github.com/NEWBR33D) (aka [PreyToLive](https://
 #### ***If you would like to support me and my work you can donate to me [here](https://ko-fi.com/preytolive). Thank you!***
 
 ## **Installation Instructions:**
-1. Begin by downloading the "PreyToLive-DynamicWeatherAndSeasons-v1.0.1.zip" file from the provided link or the Github repository.
+1. Begin by downloading the "PreyToLive-DynamicWeatherAndSeasons-v1.0.2.zip" file from the provided link or the Github repository.
 2. Extract the contents of the downloaded archive. You should now have a folder named "PreyToLive-DynamicWeatherAndSeasons" containing the mod files.
 3. Navigate to the location of your SPTarkov folder on your computer.
 4. Inside the SPTarkov folder, find the "user/mods/" directory.

@@ -1,11 +1,11 @@
 {
-    "mod": "PreyToLive-DynamicWeatherAndSeasons-v1.0.1",
+    "mod": "PreyToLive-DynamicWeatherAndSeasons-v1.0.2",
     "date": {
-        "day": 1,
-        "month": "july",
+        "day": 0,
+        "month": "january",
         "year": 2024
     },
-    "season": "summer",
+    "season": "winter",
     "weather": {
         "clouds": "",
         "rain": "",
